@@ -1,22 +1,22 @@
-Neural Network ayant pour but de differencier une vis d'un écrou.
+Neural Network that aims at differentiate a screw from a nut.
 
-Fichier source :
+Source file :
 - set_image.py
-   | Traitement d'image       
+   | Image Processing       
 - set_ia.py
-   | Création du modèle d'ia ainsi que de son entrainement        
+   | Creation of the AI and its training        
 - predictions_ia.py
-   | Prédictions du modèle
+   | Model predicitions
 - model_reconize_screw_nut.h5
-   | Fichier contenant les paramètres neural network
+   | File containing neural network parameters
 
 Data Base :
 - data_base/.
-   | image de base
+   | initial image
 - data_base_bin_224/.
-   | image binaire normalisé en (224x224)
+   | binary images normalized to 224x224 pixels.
 - data_base_color_224/.
-   | image en couleur normalisé en (224x224)
+   | colored images normalized to 224x224 pixels
 - boulon_entier.jpg 
 - 0_data_base_bin_nut.png
 - 0_data_base_color_nut.png
