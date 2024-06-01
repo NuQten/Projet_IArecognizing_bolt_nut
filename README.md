@@ -1,3 +1,5 @@
+Neural Network ayant pour but de differencier une vis d'un écrou.
+
 Fichier source :
 - set_image.py
    | Traitement d'image       
@@ -20,3 +22,8 @@ Data Base :
 - 0_data_base_color_nut.png
 - 1_data_base_bin_screw.png
 - 1_data_base_color_screw.png
+
+by
+- Quentin CONANEC
+- Elisa LABALLERY
+- Benoit DAVID
