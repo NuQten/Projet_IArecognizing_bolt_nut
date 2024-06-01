@@ -1,32 +1,42 @@
-from skimage import morphology, transform, feature, measure
+from skimage import transform, measure
 import skimage as ski
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from sklearn.cluster import KMeans
-from scipy import ndimage
 
 
 class Image_ia ():
     
-    def __init__(self, path:str) -> None:
+    def __init__(self, path:str, seuil=0.025, dimension=100, label_bg=2, label_connect=2, distance_expanse=20) -> None:
         """Initialise une photo pour pouvoir ensuite l'utilise par l'IA
 
         Args:
             path (str): chemin d'acces de la photo
+            seuil (float, optional): Seuil entre bg et fg. Comprie entre [0;1]. Defaults to 0.025.
+            label_bg (int, optional): Comprend le bg ou non dans la labelisation {None, 1, 2}. Defaults to 2.
+            label_connect (int, optional): Nombre de pixel entre 2 pour les connecte ensemble. Defaults to 2.
+            dimension (int, optional): Dimension de l'image final
         """
+        #Caractéristique img
         self.path = path
+        self.seuil = seuil
+        self.dimension = dimension
+        self.label_bg = label_bg
+        self.label_connect = label_connect
+        self.distance_expanse = distance_expanse
+        
+        #Differente image
         self.img_whole = ski.io.imread(path)
         self.gray_img_whole = ski.color.rgb2gray(self.img_whole)
         self.gradient_img_whole = ski.filters.sobel(self.gray_img_whole)
-        self.imgs = self.__segmentation__()
+        self.imgs = self.__segmentation()
         self.gray_imgs = [ski.color.rgb2gray(img) for img in self.imgs]
-        self.normalize_gray_imgs = [transform.resize(img, (250,250), anti_aliasing=True) for img in self.gray_imgs]
+        self.normalize_gray_imgs = [transform.resize(img, (self.dimension,self.dimension), anti_aliasing=True) for img in self.gray_imgs]
         self.normalize_gradient_imgs = [ski.filters.sobel(img) for img in self.normalize_gray_imgs]
         self.normalize_bin_imgs = [bin_image(img) for img in self.normalize_gradient_imgs]
      
                 
-    def __segmentation__(self, seuil=0.025, label_bg=2 , label_connect=2, distance_expanse=20):
+    def __segmentation(self):
         """Divise l'image principale en fonction du nombre de pièce présente sur la photo
 
         Args:
@@ -38,13 +48,13 @@ class Image_ia ():
             list : Retourn une liste des differentes images
         """
         #Segmente l'image en fonction du filtre gradient
-        labels = labelisation(self.gradient_img_whole, seuil, label_bg, label_connect)
+        labels = labelisation(self.gradient_img_whole, self.seuil, self.label_bg, self.label_connect)
          
         #Supprime les labels
         labels, enum_label = revome_label(labels)
             
         #Elargie les labels
-        label_expanded = ski.segmentation.expand_labels(labels, distance=distance_expanse)
+        label_expanded = ski.segmentation.expand_labels(labels, distance=self.distance_expanse)
         
         #Crée les imgages des different labels
         imgs = create_img_label(label_expanded, enum_label, self.img_whole)        
@@ -185,7 +195,7 @@ def bin_image(img, seuil=0.025):
     """Binarise une image
 
     Args:
-        imgs (array): image à binarisé
+        img (array): image à binarisé
         seuil (float, optional): Seuil de binarisation [0;1]. Defaults to 0.025.
 
     Returns:
@@ -212,12 +222,54 @@ def bin_image(img, seuil=0.025):
     
     #Retourne l'image binarisé
     return img_watershed 
+  
     
+def list_files_recursively(directory):
+    """Renvoie une liste des fichier present dans l'arboraisance
+    à partir du chemin d'acces
+    """
+    list_path = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            list_path.append(os.path.join(root, file))
+    return list_path
+
+
+def save_normalize_bin_img(path, dimension):
+    """Enregistre toute les photos dans une dimension à partir 
+        des fichier image trouvé dans l'arboransance
+    """
+
+    #Liste de tout les chemin d'acces vers une image       
+    liste = list_files_recursively(path)
+    
+    nut = 1
+    screw = 1
+    os.mkdir(f'data_base_bin_{dimension}')
+    os.mkdir(f'data_base_bin_{dimension}/screws')
+    os.mkdir(f'data_base_bin_{dimension}/nuts')
+    
+    for path in liste :
+        img = Image_ia(path, dimension=dimension)
+        for bin in img.normalize_bin_imgs:
+            # Sauvegarder l'image binaire
+            if "screws" in path : 
+                name = f'data_base_bin_{dimension}/screws/{screw}_img_bin_screw_{dimension}.png'
+                ski.io.imsave(name, (bin*255).astype('uint8'))
+                screw += 1
+            else :
+                name = f'data_base_bin_{dimension}/nuts/{nut}_img_bin_nut_{dimension}.png'
+                ski.io.imsave(name, (bin*255).astype('uint8'))
+                nut += 1
+            print(name)
+
 
 if __name__ == "__main__":
-    path = 'boulon_entier.jpg'
-    img = Image_ia(path)
     
+    path = 'boulon_entier.jpg' #Chemin d'acces de l'image
+    img = Image_ia(path) 
+    
+    #Affiche toute les état de l'image
     plt.figure()
     plt.title('image entière (couleur)')
     plt.imshow(img.img_whole)
@@ -225,12 +277,12 @@ if __name__ == "__main__":
     
     plt.figure()
     plt.title('image entière (gris)')
-    plt.imshow(img.gray_img_whole)
+    plt.imshow(img.gray_img_whole, cmap='gray')
     plt.show()
     
     plt.figure()
     plt.title('image entière (gradient)')
-    plt.imshow(img.gradient_img_whole)
+    plt.imshow(img.gradient_img_whole, cmap='gray')
     plt.show()
     
     plt.figure()
@@ -240,50 +292,31 @@ if __name__ == "__main__":
     
     plt.figure()
     plt.title('image segmenté (gris)')
-    plt.imshow(img.gray_imgs)
+    plt.imshow(img.gray_imgs[0], cmap='gray')
     plt.show()
     
     plt.figure()
     plt.title('image segmenté normalisé (gris)')
-    plt.imshow(img.normalize_gray_imgs)
+    plt.imshow(img.normalize_gray_imgs[0], cmap='gray')
     plt.show()
     
     plt.figure()
     plt.title('image segmenté normalisé (gradient)')
-    plt.imshow(img.normalize_gradient_imgs)
+    plt.imshow(img.normalize_gradient_imgs[0], cmap='gray')
     plt.show()
     
     plt.figure()
     plt.title('image segmenté normalisé (binaire)')
-    plt.imshow(img.normalize_bin_imgs)
+    plt.imshow(img.normalize_bin_imgs[0], cmap='gray')
     plt.show()
-    
-    
-    path = 'data_base'
 
-    #Parcoure un répertoire récursivement
-    def list_files_recursively(directory):
-        list_path = []
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                list_path.append(os.path.join(root, file))
-        return list_path
+    #Enregistre toute les images dans une dimension 
+    path = 'data_base' #Chemin d'acces des images
+    save_normalize_bin_img(path, 224) #Sauvegarde les images dans un dossier
                 
-    liste = list_files_recursively(path)
-    
-    n=0
-    list_point = []
-    for path in liste :
-        img = Image_ia(path)
-        for bin in img.normalize_bin_imgs:
-            plt.figure()
-            plt.imshow(bin, cmap='gray')
-            plt.title(f'{path}')
-            plt.axis('off')
-            plt.show()
-            n+=1
 
-    print(n)
+
+            
     
     
     
